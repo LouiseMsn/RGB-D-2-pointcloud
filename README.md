@@ -4,8 +4,8 @@
 
 ```bash
 # 1. Clone this repo
-git clone TODO
-cd NOM REPO
+git clone git@github.com:LouiseMsn/RGB-D-2-pointcloud.git
+cd RGB-D-2-pointcloud
 
 # 2. Clone the dependencies
 mkdir third-party && cd third-party
