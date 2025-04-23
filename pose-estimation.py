@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 import re
 
 
-sys.path.append('lang_sam')
+sys.path.append('/third-party/lang-segment-anything/lang_sam')
 from lang_sam import LangSAM
 from lang_sam.utils import draw_image
 
  
-PROMPT = "louise."
+PROMPT = "code."
 
 
 # Create a pipeline
