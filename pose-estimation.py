@@ -22,7 +22,7 @@ from lang_sam import LangSAM
 from lang_sam.utils import draw_image
 
  
-PROMPT = "code."
+PROMPT = "extrusion."
 
 
 # Create a pipeline
