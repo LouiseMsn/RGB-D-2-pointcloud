@@ -26,4 +26,4 @@ python pose-estimation.py
 # TODO
 - [ ] rename exec
 - [ ] name repo
-- [ ]
+- [ ] fix color in pointcloud

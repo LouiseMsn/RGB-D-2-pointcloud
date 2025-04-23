@@ -15,15 +15,22 @@ import os
 import open3d as o3d
 import matplotlib.pyplot as plt
 import re
+import argparse
 
-
+# Filepath inclusion of SAM
 sys.path.append('/third-party/lang-segment-anything/lang_sam')
 from lang_sam import LangSAM
 from lang_sam.utils import draw_image
 
- 
-PROMPT = "extrusion."
+parser = argparse.ArgumentParser(
+                    prog='RGB-D to pointcloud',
+                    description='Converts an object to a pointcloud using its name, a realsense camera, lang-segement-anything and open3D.',
+                    epilog='---')
+parser.add_argument('-d','--debug',help='Shows the details of the image operations & segmentation results',action="store_true")
+args = parser.parse_args()
 
+if args.debug:
+    print("DEBUG MODE")
 
 # Create a pipeline
 pipeline = rs.pipeline()
@@ -57,11 +64,6 @@ else:
 # Start streaming
 profile = pipeline.start(config)
 
-# Getting the depth sensor's depth scale 
-depth_sensor = profile.get_device().first_depth_sensor()
-depth_scale = depth_sensor.get_depth_scale()
-print("Depth Scale is: ", depth_scale)
-
 # Create an align object
 # rs.align allows us to perform alignment of depth frames to others frames
 # The "align_to" is the stream type to which we plan to align depth frames.
@@ -70,9 +72,12 @@ align = rs.align(align_to)
 
 print("Press SPACE to segment the image, and ESC with focus on the image window to quit the programm")
 
+first_frame = True # to print once the intrinsics
 # Streaming loop
 try:
     while True:
+        
+
         # Get frameset of color and depth
         frames = pipeline.wait_for_frames()
         # frames.get_depth_frame() is a 640x360 depth image
@@ -101,29 +106,32 @@ try:
         key = cv2.waitKey(1)
 
 
-
-        # Intrinsics ===========================================================
-        # print(f"{intrinsics.fx} {0.0} {intrinsics.ppx}\n")
-        # print(f"{0.0} {intrinsics.fy} {intrinsics.ppy}\n")
-        # print(f"{0.0} {0.0} {1.0}\n")
-        # ======================================================================
-
+        if args.debug and first_frame:
+            print("Camera Intrinsics :")
+            print(f"{intrinsics.fx} {0.0} {intrinsics.ppx}")
+            print(f"{0.0} {intrinsics.fy} {intrinsics.ppy}")
+            print(f"{0.0} {0.0} {1.0}")
+            print("\n")
+            first_frame = False
         
         if key & 0xFF == ord(" "):  
-
-            print("Segmenting image")
-        
-
+            # Prompt for the object searched 
+            prompt = input("Enter the name/description of the object : ") + "."
+            print("Segmenting image and searching for : "+ prompt)
+    
             # Segmentation =========================================================
             model = LangSAM()
             image_pil = Image.fromarray(np.uint8(color_image)) 
-            text_prompt = PROMPT
-            results = model.predict([image_pil], [text_prompt])[0]
+            results = model.predict([image_pil], [prompt])[0]
             labels = results['labels']
-            print("Found " + str(len(labels)) + " objects: " + str(results["scores"]) )
+            if args.debug:
+                print("Found " + str(len(labels)) + " objects: " + str(results["scores"]) )
             # ==================================================================
 
-            if len(labels) != 0 :
+            if len(labels) == 0 :
+                print("No " + str(prompt) + " was found, take another picture.")
+
+            else :
 
                 annoted_image = draw_image(
                     color_image,
@@ -133,10 +141,11 @@ try:
                     results["labels"],
                 )
 
-                cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-                cv2.setWindowTitle("Pose Estimation", "Annoted Image")
-                cv2.imshow("Pose Estimation", annoted_image)
-                key = cv2.waitKey(0)
+                if args.debug :
+                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
+                    cv2.setWindowTitle("Pose Estimation", "Annoted Image")
+                    cv2.imshow("Pose Estimation", annoted_image)
+                    key = cv2.waitKey(0)
 
 
 
@@ -145,55 +154,36 @@ try:
                 best_mask = results["masks"][highest_score_index]*(2**16-1)
                 best_mask  = best_mask.astype('uint16')
 
-                # plt.imshow(best_mask)
-                # plt.show()
+                if args.debug :
+                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
+                    cv2.setWindowTitle("Pose Estimation", "Best Mask")
+                    cv2.imshow("Pose Estimation", best_mask)
+                    key = cv2.waitKey(0)
 
-                cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-                cv2.setWindowTitle("Pose Estimation", "Best Mask")
-                cv2.imshow("Pose Estimation", best_mask)
-                key = cv2.waitKey(0)
-
-                # best_mask = cv2.cvtColor(best_mask, cv2.COLOR_GRAY2RGB)
-                
-                print("color image type : " + str(type(color_image)) + str(color_image.dtype) + ","+ str(color_image.shape))
-                print("mask  image type : " + str(type(best_mask)) + str(best_mask.dtype) + ","+ str(best_mask.shape))
-                print("depth image:" + str(depth_image.dtype))
-
-               
-
-                # depth = cv2.applyColorMap(depth_image, cv2.COLOR_GRAY2RGB)
-                # masked_depth_viewer = cv2.applyColorMap(masked_depth.astype('uint8'),cv2.COLORMAP_JET)
-
-                print("bitwise operation types:" + str(depth_image.dtype) + " and with " + str(best_mask.dtype))
-
+                    print("color image type : " + str(type(color_image)) + str(color_image.dtype) + ","+ str(color_image.shape))
+                    print("depth image type : " + str(type(depth_image)) + str(depth_image.dtype) + ","+ str(depth_image.shape))
+                    print("mask  image type : " + str(type(best_mask)) + str(best_mask.dtype) + ","+ str(best_mask.shape))
+                    
                 masked_depth = np.bitwise_and(depth_image,best_mask)
 
-                print("Masked depth image type:" + str(masked_depth.dtype))
 
-                plt.title("depth")
-                plt.imshow(depth_image)
-                plt.show()
+                if args.debug :
+                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
+                    cv2.setWindowTitle("Pose Estimation", "Depth")
+                    cv2.imshow("Pose Estimation", depth_image)
+                    key = cv2.waitKey(0)
 
-                plt.title("masked depth")
-                plt.imshow(masked_depth)
-                plt.show()
-
-
-                
-                # masked_depth_viewer = cv2.applyColorMap(masked_depth.astype('uint8'),cv2.COLORMAP_JET)
-                # cv2.imshow("Pose Estimation", masked_depth_viewer)
-                # key = cv2.waitKey(0)
-
+                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
+                    cv2.setWindowTitle("Pose Estimation", "Masked Depth")
+                    cv2.imshow("Pose Estimation", masked_depth)
+                    key = cv2.waitKey(0)
 
                 # point cloud ==================================================
                 cam = o3d.camera.PinholeCameraIntrinsic(640,480,intrinsics.fx,intrinsics.fy,intrinsics.ppx,intrinsics.ppy)
-                # cam.intrinsic_matrix =  [[intrinsics.fx, 0.00, intrinsics.ppx] , [0.00, intrinsics.fy, intrinsics.ppy], [0.00, 0.00, 1.00]] #! perhaps the culprit
-                print(cam)
 
                 rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(o3d.geometry.Image(color_image),
                                                                         o3d.geometry.Image(masked_depth), 
                                                                         convert_rgb_to_intensity = False
-                                                                        # ,depth_scale = (1.0/depth_scale)
                                                                         )
                 
                 pointcloud = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd, cam)
@@ -212,11 +202,14 @@ try:
 
                 # construct name of file
                 date = datetime.today().strftime('%Y-%m-%d--%H-%M-%S')
-                label = re.sub('[.]', '', PROMPT)
+                label = re.sub('[.]', '', prompt)
                 pointcld_name = label + "-"+ str(date) + ".ply"
 
                 pointcld_path = os.path.join(subfolder_pcd, pointcld_name)
                 o3d.io.write_point_cloud(pointcld_path, pointcloud, format='auto', write_ascii=False, compressed=False, print_progress=False)
+
+                if args.debug :
+                    print("Poincloud written to: " + str(pointcld_path) + str(pointcld_name))
 
 
 
