@@ -16,6 +16,7 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 import re
 import argparse
+import time
 
 # Filepath inclusion of SAM
 sys.path.append('/third-party/lang-segment-anything/lang_sam')
@@ -26,7 +27,8 @@ parser = argparse.ArgumentParser(
                     prog='RGB-D to pointcloud',
                     description='Converts an object to a pointcloud using its name, a realsense camera, lang-segement-anything and open3D.',
                     epilog='---')
-parser.add_argument('-d','--debug',help='Shows the details of the image operations & segmentation results',action="store_true")
+parser.add_argument('-d','--debug', help= 'Shows the details of the image operations & segmentation results',action="store_true")
+parser.add_argument('--show_pcd', help= "Shows the point cloud in the viewer", action= "store_true")
 args = parser.parse_args()
 
 if args.debug:
@@ -70,7 +72,7 @@ profile = pipeline.start(config)
 align_to = rs.stream.color
 align = rs.align(align_to)
 
-print("Press SPACE to segment the image, and ESC with focus on the image window to quit the programm")
+print("Press SPACE to take and segment the image, and ESC with focus on the image window to quit the program")
 
 first_frame = True # to print once the intrinsics
 # Streaming loop
@@ -98,11 +100,12 @@ try:
             continue
 
         depth_image = np.asanyarray(aligned_depth_frame.get_data())
-        color_image = np.asanyarray(color_frame.get_data())
+        color_image_bgr = np.asanyarray(color_frame.get_data())
+        color_image = cv2.cvtColor(color_image_bgr, cv2.COLOR_BGR2RGB)
 
         # We use openCV for realtime streaming 
         cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-        cv2.imshow("Pose Estimation", color_image)
+        cv2.imshow("Pose Estimation", color_image_bgr)
         key = cv2.waitKey(1)
 
 
@@ -141,42 +144,54 @@ try:
                     results["labels"],
                 )
 
-                if args.debug :
-                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-                    cv2.setWindowTitle("Pose Estimation", "Annoted Image")
-                    cv2.imshow("Pose Estimation", annoted_image)
-                    key = cv2.waitKey(0)
-
-
 
                 highest_score_index = results["scores"].argmax()  # index of the highest scoring mask
-                print("index " + str(highest_score_index) + " of score " + str(results["scores"]))
                 best_mask = results["masks"][highest_score_index]*(2**16-1)
                 best_mask  = best_mask.astype('uint16')
 
                 if args.debug :
-                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-                    cv2.setWindowTitle("Pose Estimation", "Best Mask")
-                    cv2.imshow("Pose Estimation", best_mask)
-                    key = cv2.waitKey(0)
-
+            
                     print("color image type : " + str(type(color_image)) + str(color_image.dtype) + ","+ str(color_image.shape))
                     print("depth image type : " + str(type(depth_image)) + str(depth_image.dtype) + ","+ str(depth_image.shape))
                     print("mask  image type : " + str(type(best_mask)) + str(best_mask.dtype) + ","+ str(best_mask.shape))
                     
                 masked_depth = np.bitwise_and(depth_image,best_mask)
 
-
+                
+                # VISU GLOBALE =================================================
                 if args.debug :
-                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-                    cv2.setWindowTitle("Pose Estimation", "Depth")
-                    cv2.imshow("Pose Estimation", depth_image)
-                    key = cv2.waitKey(0)
+                    plt.subplot(2, 3, 1)  
+                    plt.imshow(color_image)  
+                    plt.axis('off')  
+                    plt.title("RGB") 
 
-                    cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-                    cv2.setWindowTitle("Pose Estimation", "Masked Depth")
-                    cv2.imshow("Pose Estimation", masked_depth)
-                    key = cv2.waitKey(0)
+                    plt.subplot(2, 3, 2) 
+                    plt.imshow(annoted_image) 
+                    plt.axis('off') 
+                    plt.title("Segmentation result for " + str(prompt))  
+                    
+                    plt.subplot(2, 3, 3) 
+                    plt.imshow(best_mask, cmap = 'binary_r')  
+                    plt.axis('off') 
+                    plt.title("Mask with highest confidence")  
+                                    
+                    plt.subplot(2, 3, 4)  
+                    plt.imshow(depth_image, cmap='plasma')  
+                    plt.axis('off')  
+                    plt.title("Depth") 
+                    plt.colorbar(label="Depth (mm)", orientation="vertical")
+                    
+                    plt.subplot(2, 3, 5) 
+                    plt.imshow(masked_depth,cmap='plasma')  
+                    plt.axis('off')  
+                    plt.title("Masked Depth")
+                    plt.colorbar(label="Depth (mm)", orientation="vertical") 
+
+
+                    plt.show()
+
+
+                # ==============================================================
 
                 # point cloud ==================================================
                 cam = o3d.camera.PinholeCameraIntrinsic(640,480,intrinsics.fx,intrinsics.fy,intrinsics.ppx,intrinsics.ppy)
@@ -206,12 +221,20 @@ try:
                 pointcld_name = label + "-"+ str(date) + ".ply"
 
                 pointcld_path = os.path.join(subfolder_pcd, pointcld_name)
-                o3d.io.write_point_cloud(pointcld_path, pointcloud, format='auto', write_ascii=False, compressed=False, print_progress=False)
 
-                if args.debug :
-                    print("Poincloud written to: " + str(pointcld_path) + str(pointcld_name))
+                
+                save_answ =''
+                while save_answ != "y" or save_answ != "n":
+                    save_answ = input("Save the point cloud? [y/n] :")
+                
+                    if save_answ == "y" :
+                        o3d.io.write_point_cloud(pointcld_path, pointcloud, format='auto', write_ascii=False, compressed=False, print_progress=False)
+                        print("Poincloud written to: " + str(pointcld_path))
+                        break;
+                    elif save_answ == 'n':
+                        break;
 
-
+            print("Press SPACE to take and segment the image, and ESC with focus on the image window to quit the program")
 
         # Press esc or 'q' to close the image window
         if key & 0xFF == ord("q") or key == 27:
