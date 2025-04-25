@@ -38,8 +38,8 @@ If the -d option is passed during launch the following images are shown:
 
 RGB and Depth are the entry images and the prompt is "plushie". The program then outputs the following pointcloud :
 
-<!-- ![Visualization of the pointcloud](./images/video.gif) -->
 <img src="./images/video.gif" alt="Visualization of the pointcloud">
-(Visualization of the pointcloud generated with [open3d-gif-visualization](https://github.com/phillipinseoul/open3d-gif-visualization).)
 
+<sub>Visualization of the pointcloud generated with [open3d-gif-visualization](https://github.com/phillipinseoul/open3d-gif-visualization)
+</sub>
  
