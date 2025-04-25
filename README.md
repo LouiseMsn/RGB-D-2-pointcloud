@@ -26,7 +26,7 @@ conda activate rgbd-pointcloud
 
 Make sure your camera is plugged in and launch :
 ```bash
-python pose-estimation.py
+python rgbd-2-pcd.py
 ```
 ##### Options:  
 `-d` : debuging info  
