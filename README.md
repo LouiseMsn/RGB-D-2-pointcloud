@@ -41,11 +41,4 @@ RGB and Depth are the entry images and the prompt is "plushie". The program then
 ![Visualization of the pointcloud](./images/video.gif)
 (Visualization of the pointcloud generated with [open3d-gif-visualization](https://github.com/phillipinseoul/open3d-gif-visualization).)
 
-
-# TODO
-- [ ] rename exec
-- [x] name repo
-- [x] fix color in pointcloud
-- [x] fix repeating name
-- [ ] print images as a big window
  
