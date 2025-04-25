@@ -1,9 +1,6 @@
-## License: Apache 2.0. See LICENSE file in root directory.
-## Copyright(c) 2017 Intel Corporation. All Rights Reserved.
-
-#####################################################
-##              Align Depth to Color               ##
-#####################################################
+# ==============================================================================
+# RGB-D and object name to pointcloud
+# ==============================================================================
 
 import pyrealsense2 as rs
 import numpy as np
@@ -16,23 +13,26 @@ import open3d as o3d
 import matplotlib.pyplot as plt
 import re
 import argparse
-import time
 
 # Filepath inclusion of SAM
 sys.path.append('/third-party/lang-segment-anything/lang_sam')
 from lang_sam import LangSAM
 from lang_sam.utils import draw_image
+# ==============================================================================
+# COMMAND LINE ARGUMENTS
 
 parser = argparse.ArgumentParser(
                     prog='RGB-D to pointcloud',
                     description='Converts an object to a pointcloud using its name, a realsense camera, lang-segement-anything and open3D.',
                     epilog='---')
+
 parser.add_argument('-d','--debug', help= 'Shows the details of the image operations & segmentation results',action="store_true")
-parser.add_argument('--show_pcd', help= "Shows the point cloud in the viewer", action= "store_true")
+
+parser.add_argument('--hide_pcd', help= "Hides and auto-saves the point cloud during execution", action= "store_true")
 args = parser.parse_args()
 
-if args.debug:
-    print("DEBUG MODE")
+# ==============================================================================
+# CAMERA SETUP
 
 # Create a pipeline
 pipeline = rs.pipeline()
@@ -74,12 +74,14 @@ align = rs.align(align_to)
 
 print("Press SPACE to take and segment the image, and ESC with focus on the image window to quit the program")
 
+
 first_frame = True # to print once the intrinsics
-# Streaming loop
+
+# ==============================================================================
+# MAIN LOOP
 try:
     while True:
-        
-
+    
         # Get frameset of color and depth
         frames = pipeline.wait_for_frames()
         # frames.get_depth_frame() is a 640x360 depth image
@@ -91,7 +93,6 @@ try:
         aligned_depth_frame = (aligned_frames.get_depth_frame())  # aligned_depth_frame is a 640x480 depth image
         color_frame = aligned_frames.get_color_frame()
         
-
         # Get instrinsics from aligned_depth_frame
         intrinsics = aligned_depth_frame.profile.as_video_stream_profile().intrinsics
 
@@ -103,9 +104,9 @@ try:
         color_image_bgr = np.asanyarray(color_frame.get_data())
         color_image = cv2.cvtColor(color_image_bgr, cv2.COLOR_BGR2RGB)
 
-        # We use openCV for realtime streaming 
-        cv2.namedWindow("Pose Estimation", cv2.WINDOW_NORMAL)
-        cv2.imshow("Pose Estimation", color_image_bgr)
+        # Streaming the RGB image in realtime 
+        cv2.namedWindow("Camera input", cv2.WINDOW_NORMAL)
+        cv2.imshow("Camera input", color_image_bgr)
         key = cv2.waitKey(1)
 
 
@@ -144,22 +145,22 @@ try:
                     results["labels"],
                 )
 
-
-                highest_score_index = results["scores"].argmax()  # index of the highest scoring mask
+                # index of the highest scoring mask
+                highest_score_index = results["scores"].argmax()  
                 best_mask = results["masks"][highest_score_index]*(2**16-1)
+                # converting the mask to uint16 to match the depth & allow for bitwise binary operation
                 best_mask  = best_mask.astype('uint16')
 
                 if args.debug :
-            
                     print("color image type : " + str(type(color_image)) + str(color_image.dtype) + ","+ str(color_image.shape))
                     print("depth image type : " + str(type(depth_image)) + str(depth_image.dtype) + ","+ str(depth_image.shape))
                     print("mask  image type : " + str(type(best_mask)) + str(best_mask.dtype) + ","+ str(best_mask.shape))
-                    
+            
+                # Apply the mask to the depth
                 masked_depth = np.bitwise_and(depth_image,best_mask)
 
-                
-                # VISU GLOBALE =================================================
                 if args.debug :
+                    # plot all images
                     plt.subplot(2, 3, 1)  
                     plt.imshow(color_image)  
                     plt.axis('off')  
@@ -187,13 +188,9 @@ try:
                     plt.title("Masked Depth")
                     plt.colorbar(label="Depth (mm)", orientation="vertical") 
 
-
                     plt.show()
 
-
-                # ==============================================================
-
-                # point cloud ==================================================
+                # Point cloud generation
                 cam = o3d.camera.PinholeCameraIntrinsic(640,480,intrinsics.fx,intrinsics.fy,intrinsics.ppx,intrinsics.ppy)
 
                 rgbd = o3d.geometry.RGBDImage.create_from_color_and_depth(o3d.geometry.Image(color_image),
@@ -206,9 +203,10 @@ try:
                 # flip the orientation, so it looks upright, not upside-down
                 pointcloud = pointcloud.transform([[1,0,0,0],[0,-1,0,0],[0,0,-1,0],[0,0,0,1]])
 
-                o3d.visualization.draw_geometries([pointcloud]) 
+                if not args.hide_pcd :
+                    o3d.visualization.draw_geometries([pointcloud]) 
 
-                # save point cloud =============================================
+                # save pointcloud
                 current_dir_path = os.path.dirname(os.path.realpath(__file__))
                 subfolder_pcd = os.path.join(current_dir_path, "point_clouds")
 
@@ -222,7 +220,6 @@ try:
 
                 pointcld_path = os.path.join(subfolder_pcd, pointcld_name)
 
-                
                 save_answ =''
                 while save_answ != "y" or save_answ != "n":
                     save_answ = input("Save the point cloud? [y/n] :")
@@ -233,14 +230,12 @@ try:
                         break;
                     elif save_answ == 'n':
                         break;
-
+               
             print("Press SPACE to take and segment the image, and ESC with focus on the image window to quit the program")
 
         # Press esc or 'q' to close the image window
         if key & 0xFF == ord("q") or key == 27:
-
             cv2.destroyAllWindows()
-
             break;
          
 finally:
