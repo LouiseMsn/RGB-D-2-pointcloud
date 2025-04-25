@@ -1,4 +1,7 @@
 # RGB-D based point cloud generation with object recognition
+This code generates a pointcloud from RGB and depth images and a name of the object to be rendered in 3D.
+
+A mask of the object is created from the RGB image using [lang-segment-anything](https://github.com/luca-medeiros/lang-segment-anything) and applied to the depth. A pointcloud is then created from the masked depth and RGB images using open3D.
 
 ## Installation
 
@@ -18,12 +21,31 @@ conda activate rgbd-pointcloud
 ```
 
 ## Usage
-This code uses a realsense 345 make sure it is plugged in and launch:
+>[!NOTE]
+>This coda has only been tested with a Realsense D345 but should work with minimal modifications with other types of realsense cameras.
+
+Make sure your camera is plugged in and launch :
 ```bash
 python pose-estimation.py
 ```
+Options:
+`-d` : debuging info
+`--show_pcd` :  will open the point cloud in the visualizer
+
+## Results
+If the -d option is passed during launch the following images are shown:
+![til](./images/plushie_results.png)
+
+RGB and Depth are the entry images and the prompt is "plushie". The program then outputs the following pointcloud :
+
+![Visualization of the pointcloud](./images/video.gif)
+(Visualization of the pointcloud generated with [open3d-gif-visualization](https://github.com/phillipinseoul/open3d-gif-visualization).)
+
 
 # TODO
 - [ ] rename exec
-- [ ] name repo
-- [ ] fix color in pointcloud
+- [x] name repo
+- [x] fix color in pointcloud
+- [x] fix repeating name
+- [ ] print images as a big window
+ 
