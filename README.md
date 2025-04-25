@@ -29,7 +29,7 @@ Make sure your camera is plugged in and launch :
 python pose-estimation.py
 ```
 Options:
-`-d` : debuging info
+`-d` : debuging info  
 `--show_pcd` :  will open the point cloud in the visualizer
 
 ## Results
