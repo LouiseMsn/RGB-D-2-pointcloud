@@ -22,7 +22,7 @@ conda activate rgbd-pointcloud
 
 ## Usage
 >[!NOTE]
->This coda has only been tested with a Realsense D345 but should work with minimal modifications with other types of realsense cameras.
+>This code has only been tested with a Realsense D345 but should work with minimal modifications with other types of realsense cameras.
 
 Make sure your camera is plugged in and launch :
 ```bash
@@ -34,7 +34,7 @@ Options:
 
 ## Results
 If the -d option is passed during launch the following images are shown:
-![til](./images/plushie_results.png)
+![Images results](./images/plushie_results.png)
 
 RGB and Depth are the entry images and the prompt is "plushie". The program then outputs the following pointcloud :
 
