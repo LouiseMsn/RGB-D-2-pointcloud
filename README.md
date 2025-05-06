@@ -4,20 +4,20 @@ This code generates a pointcloud from RGB and depth images and a name of the obj
 A mask of the object is created from the RGB image using [lang-segment-anything](https://github.com/luca-medeiros/lang-segment-anything) and applied to the depth. A pointcloud is then created from the masked depth and RGB images using open3D.
 
 ## Installation
-
 ```bash
 # 1. Clone this repo
 git clone git@github.com:LouiseMsn/RGB-D-2-pointcloud.git
 cd RGB-D-2-pointcloud
 
-# 2. Clone the dependencies
-mkdir third-party && cd third-party
-git clone git@github.com:luca-medeiros/lang-segment-anything.git
-cd ..
-
-# 3. Create the conda environment
-conda env create -f environment.yml 
+#2. Set up the conda environment
+conda env create -n rgbd-pointcloud 
 conda activate rgbd-pointcloud
+
+# 3.Install packages
+conda install pyrealsense2 
+pip install torch==2.4.1 torchvision==0.19.1 --extra-index-url https://download.pytorch.org/whl/cu124
+pip install -U git+https://github.com/luca-medeiros/lang-segment-anything.git
+conda install open3d opencv 
 ```
 
 ## Usage
